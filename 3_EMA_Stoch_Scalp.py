@@ -1,12 +1,20 @@
-from numpy.core.fromnumeric import take
-from requests.api import get
-from modules.oanda_api import market_order, limit_order, get_candlestick_data, get_balance, get_account
+from modules.oanda_api import limit_order, get_candlestick_data, get_balance, get_account
 from talib import STOCHRSI, ATR
 import time
+import datetime as dt
+
+PARAMS = {
+    'bull_stoch_cross' : 40,
+    'bear_stoch_cross' : 60,
+    'EMA_gap' : 0.0001, # 1 pip
+    'risk_pct' : 0.02, # 2%
+    'sleep' : 30 # 1 minute
+}
 
 class Strategy:
     """
     Indicators: 8, 14, 50 EMA, Stochastic
+
     """
     def __init__(self,candle_span='M5'):
         self.instruments = [
@@ -34,12 +42,11 @@ class Strategy:
 
     def live(self):
         try:
-            print('Starting Algorithm')
+            print('\nStarting Algorithm...')
             while True:
-                self.update_data()
-                if get_account()['openPositionCount'] == 0 and len(get_account()['orders']) == 0:
-                    #Look for position
-                    print('Looking for position')
+                if dt.datetime.now().minute % 5 == 0 and dt.datetime.now().second < 10 and get_account()['openPositionCount'] == 0 and len(get_account()['orders']) == 0:
+                    self.update_data()
+                    print(f'\n---- {time.asctime()}: Looking for Signals ---- \n')
                     for ins in self.instruments:
                         df = self.data[ins]
                         #Latest candle data
@@ -56,28 +63,30 @@ class Strategy:
                         cur_stoch_ma = df['Stoch_ma'][-1]
 
                         #Long signals
-                        bull_cross = prev_stoch <= prev_stoch_ma and cur_stoch >= cur_stoch_ma and prev_stoch < 50
-                        emas_in_order = ema8 > ema14 and ema14 > ema50
+                        bull_cross = prev_stoch <= prev_stoch_ma and cur_stoch > cur_stoch_ma and prev_stoch < PARAMS['bull_stoch_cross']
+                        emas_in_order = ema8 > ema14 + PARAMS['EMA_gap'] and ema14 > ema50 + PARAMS['EMA_gap']
+                        #Short signals
+                        bear_cross = prev_stoch >= prev_stoch_ma and cur_stoch < cur_stoch_ma and prev_stoch > PARAMS['bear_stoch_cross']
+                        emas_in_order = ema8 + PARAMS['EMA_gap'] < ema14 and ema14 + PARAMS['EMA_gap'] < ema50
 
                         if bull_cross and emas_in_order and c > ema8 and len(get_account()['orders']) == 0:
-                            stop_loss = round(c - 3*atr,4)
-                            take_profit = round(c + 2*atr,4)
-                            max_qty = 2_000_000//c
-                            qty = min(int((0.02*get_balance())//(take_profit - c)),max_qty)
+                            # stop_loss = round(c - PARAMS['stop_loss_atr_factor']*atr,5)
+                            stop_loss = min([df['Low'][-di] for di in range(16)])
+                            # take_profit = round(c + PARAMS['take_profit_atr_factor']*atr,5)
+                            take_profit = c + (c-stop_loss)
+                            qty = int((PARAMS['risk_pct']*get_balance())//(take_profit - c))
                             limit_order(ins,c,qty,stop_loss,take_profit)
-
-                        #Short signals
-                        bear_cross = prev_stoch >= prev_stoch_ma and cur_stoch <= cur_stoch_ma and prev_stoch > 50
-                        emas_in_order = ema8 < ema14 and ema14 < ema50
-
-                        if bear_cross and emas_in_order and c < ema8 and len(get_account()['orders']) == 0:
-                            stop_loss = round(c + 3*atr,4)
-                            take_profit = round(c - 2*atr,4)
-                            max_qty = 2_000_000//c
-                            qty = min(int((0.02*get_balance())//(take_profit - c)),max_qty)
+                            print("\tLong Signal Detected")
+                            break
+                        elif bear_cross and emas_in_order and c < ema8 and len(get_account()['orders']) == 0:
+                            stop_loss = round(c + PARAMS['stop_loss_atr_factor']*atr,5)
+                            take_profit = round(c - PARAMS['take_profit_atr_factor']*atr,5)
+                            qty = int((PARAMS['risk_pct']*get_balance())//(take_profit - c))
                             limit_order(ins,c,qty,stop_loss,take_profit)
-                print(f'{time.asctime()}')
-                time.sleep(2.5*60)
+                            print("\tShort Signal Detected")
+                            break
+                    else:
+                        print('\tNo Signals found')
 
         except Exception as e:
             print(e)

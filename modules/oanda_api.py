@@ -43,6 +43,15 @@ def get_positions():
 
 def limit_order(instrument, price, qty, stop_loss, take_profit):
     end_point = f"v3/accounts/{account_id}/orders"
+    if price >= 10:
+        price = round(price,3)
+        stop_loss = round(stop_loss,3)
+        take_profit = round(take_profit,3)
+        qty = qty * 100
+    else:
+        price = round(price,5)
+        stop_loss = round(stop_loss,5)
+        take_profit = round(take_profit,5)
     data = {
         "order": {
             "price": str(price),
@@ -65,9 +74,10 @@ def limit_order(instrument, price, qty, stop_loss, take_profit):
     print(r)
     dic = json.loads(r.text)
     if 'errorMessage' in dic.keys():
-        print(f'Unable to complete order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit}')
+        print(f'\tUnable to complete order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit}')
+        print(dic['Error: \nerrorMessage\n'])
     else:
-        print(f'Limit Order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit} | completed')
+        print(f'\tLimit Order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit} | completed')
 
 def market_order(instrument, qty, stop_loss, take_profit):
     """Sends market order, FOK: filled or killed"""
@@ -90,6 +100,6 @@ def market_order(instrument, qty, stop_loss, take_profit):
     print(r)
     dic = json.loads(r.text)
     if 'errorMessage' in dic.keys():
-        print(f'Unable to complete order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit}')
+        print(f'\tUnable to complete order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit}')
     else:
-        print(f'Market Order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit} | completed')
+        print(f'\tMarket Order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit} | completed')

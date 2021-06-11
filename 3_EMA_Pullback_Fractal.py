@@ -23,9 +23,9 @@ class Strategy:
         for ins in self.instruments:
             data = get_candlestick_data(ins,1000,self.candle_span)
             #Add indicators to data here
-            data['EMA 20'] = data['Close'].ewm(8).mean()
-            data['EMA 50'] = data['Close'].ewm(14).mean()
-            data['EMA 100'] = data['Close'].ewm(50).mean()
+            data['EMA 50'] = data['Close'].ewm(20).mean()
+            data['EMA 50'] = data['Close'].ewm(50).mean()
+            data['EMA 100'] = data['Close'].ewm(100).mean()
             fractals(data)
             data['ATR'] = ATR(data['High'],data['Low'],data['Close'])
             d[ins] = data
