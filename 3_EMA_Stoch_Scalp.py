@@ -79,8 +79,10 @@ class Strategy:
                             print("\tLong Signal Detected")
                             break
                         elif bear_cross and emas_in_order and c < ema8 and len(get_account()['orders']) == 0:
-                            stop_loss = round(c + PARAMS['stop_loss_atr_factor']*atr,5)
-                            take_profit = round(c - PARAMS['take_profit_atr_factor']*atr,5)
+                            # stop_loss = round(c - PARAMS['stop_loss_atr_factor']*atr,5)
+                            stop_loss = max([df['High'][-di] for di in range(16)])
+                            # take_profit = round(c + PARAMS['take_profit_atr_factor']*atr,5)
+                            take_profit = c - (-c+stop_loss)
                             qty = int((PARAMS['risk_pct']*get_balance())//(take_profit - c))
                             limit_order(ins,c,qty,stop_loss,take_profit)
                             print("\tShort Signal Detected")
