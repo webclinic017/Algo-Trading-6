@@ -7,9 +7,8 @@ class Strategy:
     def __init__(self,candle_span='M5'):
         self.instruments = [
             'USD_CAD','EUR_USD','USD_CHF','GBP_USD','NZD_USD',
-            'AUD_USD','USD_JPY','EUR_CAD','EUR_AUD','EUR_JPY',
-            'EUR_CHF','EUR_GBP','AUD_CAD','GBP_CHF','GBP_JPY',
-            'CHF_JPY','AUD_JPY','AUD_NZD'
+            'AUD_USD','EUR_CAD','EUR_AUD','EUR_CHF','EUR_GBP',
+            'AUD_CAD','GBP_CHF','AUD_NZD'
         ]
         self.candle_span = candle_span
         self.update_data()

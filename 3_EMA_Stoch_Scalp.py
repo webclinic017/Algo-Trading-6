@@ -11,7 +11,7 @@ PARAMS = {
     'sleep' : 30 # 1 minute
 }
 
-class Strategy:
+class Stoch_Scalp:
     """
     Indicators: 8, 14, 50 EMA, Stochastic
 
@@ -19,9 +19,8 @@ class Strategy:
     def __init__(self,candle_span='M5'):
         self.instruments = [
             'USD_CAD','EUR_USD','USD_CHF','GBP_USD','NZD_USD',
-            'AUD_USD','USD_JPY','EUR_CAD','EUR_AUD','EUR_JPY',
-            'EUR_CHF','EUR_GBP','AUD_CAD','GBP_CHF','GBP_JPY',
-            'CHF_JPY','AUD_JPY','AUD_NZD'
+            'AUD_USD','EUR_CAD','EUR_AUD','EUR_CHF','EUR_GBP',
+            'AUD_CAD','GBP_CHF','AUD_NZD'
         ]
         self.candle_span = candle_span
         self.update_data()
@@ -70,18 +69,14 @@ class Strategy:
                         emas_in_order = ema8 + PARAMS['EMA_gap'] < ema14 and ema14 + PARAMS['EMA_gap'] < ema50
 
                         if bull_cross and emas_in_order and c > ema8 and len(get_account()['orders']) == 0:
-                            # stop_loss = round(c - PARAMS['stop_loss_atr_factor']*atr,5)
-                            stop_loss = min([df['Low'][-di] for di in range(16)])
-                            # take_profit = round(c + PARAMS['take_profit_atr_factor']*atr,5)
+                            stop_loss = min([df['Low'][-di] for di in range(8)])
                             take_profit = c + (c-stop_loss)
                             qty = int((PARAMS['risk_pct']*get_balance())//(take_profit - c))
                             limit_order(ins,c,qty,stop_loss,take_profit)
                             print("\tLong Signal Detected")
                             break
                         elif bear_cross and emas_in_order and c < ema8 and len(get_account()['orders']) == 0:
-                            # stop_loss = round(c - PARAMS['stop_loss_atr_factor']*atr,5)
-                            stop_loss = max([df['High'][-di] for di in range(16)])
-                            # take_profit = round(c + PARAMS['take_profit_atr_factor']*atr,5)
+                            stop_loss = max([df['High'][-di] for di in range(8)])
                             take_profit = c - (-c+stop_loss)
                             qty = int((PARAMS['risk_pct']*get_balance())//(take_profit - c))
                             limit_order(ins,c,qty,stop_loss,take_profit)
@@ -97,5 +92,5 @@ class Strategy:
                 self.live()
 
 if __name__ == "__main__":
-    strat = Strategy()
+    strat = Stoch_Scalp()
     strat.live()
