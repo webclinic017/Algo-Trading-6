@@ -1,0 +1,13 @@
+{% extends "base.html" %} {% block title %}Home{% endblock %} {% block content%}
+<h1 align="center">Streams</h1>
+<form action="/" method="post">
+    <div>
+        <label for="strategy">Stoch Scalp Strat:</label>
+        <button name="strategy" value="strat1">Start</button>
+    </div>
+    <div>
+        <label for="strategy">Simple 5 SMA cross Strat:</label>
+        <button name="strategy" value="strat2">Start</button>
+    </div>
+</form>
+{% endblock %}
