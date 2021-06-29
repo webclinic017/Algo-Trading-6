@@ -26,7 +26,7 @@ class Triple_STrend:
     def update_data(self):
         d = {}
         for ins in self.instruments:
-            data = get_candlestick_data(ins,1000,self.candle_span)
+            data = get_candlestick_data(ins,300,self.candle_span)
             #Add indicators to data here
             data['EMA 200'] = data['Close'].ewm(200).mean()
             data['Stoch RSI'], data['Stoch RSI MA'] = STOCHRSI(data['Close'],fastk_period=3)
