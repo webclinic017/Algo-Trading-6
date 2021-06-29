@@ -6,7 +6,7 @@ from .models import Note
 from . import db
 import json
 import threading
-from .strategies import Stoch_Scalp, SMA5_Cross
+from .strategies import Stoch_Scalp, SMA5_Cross, Triple_STrend
 
 views = Blueprint('views', __name__)
 
@@ -23,6 +23,10 @@ def home():
             t.start()
         elif strategy_id == "strat2":
             algo = SMA5_Cross()
+            t = threading.Thread(target=algo.start)
+            t.start()
+        elif strategy_id == "strat3":
+            algo = Triple_STrend()
             t = threading.Thread(target=algo.start)
             t.start()
       
