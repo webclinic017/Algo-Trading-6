@@ -29,7 +29,7 @@ class Triple_STrend:
             data = get_candlestick_data(ins,1000,self.candle_span)
             #Add indicators to data here
             data['EMA 200'] = data['Close'].ewm(200).mean()
-            data['Stoch RSI'], data['Stoch RSI MA'] = STOCHRSI(data['Close'])
+            data['Stoch RSI'], data['Stoch RSI MA'] = STOCHRSI(data['Close'],fastk_period=3)
             data['strend 3'],data['s_up_3'],data['s_down_3'] = supertrend(data['High'],data['Low'],data['Close'],12,3)
             data['strend 2'],data['s_up_2'],data['s_down_2'] = supertrend(data['High'],data['Low'],data['Close'],11,2)
             data['strend 1'],data['s_up_1'],data['s_down_1'] = supertrend(data['High'],data['Low'],data['Close'],10,1)
@@ -66,7 +66,7 @@ class Triple_STrend:
         try:
             print('\nStarting Triple SuperTrend Algorithm...')
             while True:
-                if dt.datetime.now().minute % 5 == 0 and dt.datetime.now().second < 10 and get_account()['openPositionCount'] == 0 and len(get_account()['orders']) == 0:
+                if dt.datetime.now().minute % 5 == 3 and dt.datetime.now().second < 10 and get_account()['openPositionCount'] == 0 and len(get_account()['orders']) == 0:
                     self.update_data()
                     print(f'\n---- {time.asctime()}: Looking for Signals ---- \n')
                     for ins in self.instruments:
