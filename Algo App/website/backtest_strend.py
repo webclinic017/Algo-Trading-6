@@ -13,7 +13,75 @@ Stop Loss: stop loss at second supertrend, target 1:1.5 Risk:Reward
 Special case: If Stochastic RSI goes overbought/oversold, and not 2 strends above/below, wait until two strends
 go above/below as long as stochastic rsi still above/below 50 line
 """
+def supertrend(high, low, close, lookback, multiplier):
+    # ATR
+    tr1 = pd.DataFrame(high - low)
+    tr2 = pd.DataFrame(abs(high - close.shift(1)))
+    tr3 = pd.DataFrame(abs(low - close.shift(1)))
+    frames = [tr1, tr2, tr3]
+    tr = pd.concat(frames, axis = 1, join = 'inner').max(axis = 1)
+    atr = tr.ewm(lookback).mean()
+    # H/L AVG AND BASIC UPPER & LOWER BAND
+    hl_avg = (high + low) / 2
+    upper_band = (hl_avg + multiplier * atr).dropna()
+    lower_band = (hl_avg - multiplier * atr).dropna()
+    # FINAL UPPER BAND
+    final_bands = pd.DataFrame(columns = ['upper', 'lower'])
+    final_bands.iloc[:,0] = [x for x in upper_band - upper_band]
+    final_bands.iloc[:,1] = final_bands.iloc[:,0]
+    # SUPERTREND
+    supertrend = pd.DataFrame(columns = [f'supertrend_{lookback}'])
+    supertrend.iloc[:,0] = [x for x in final_bands['upper'] - final_bands['upper']]
 
+    upt = []
+    dt = []
+    close = close.iloc[len(close) - len(supertrend):]
+    for i in range(len(final_bands)):
+        if i == 0:
+            final_bands.iloc[i,0] = 0
+        else:
+            if (upper_band[i] < final_bands.iloc[i-1,0]) | (close[i-1] > final_bands.iloc[i-1,0]):
+                final_bands.iloc[i,0] = upper_band[i]
+            else:
+                final_bands.iloc[i,0] = final_bands.iloc[i-1,0]
+        
+        if i == 0:
+            final_bands.iloc[i, 1] = 0
+        else:
+            if (lower_band[i] > final_bands.iloc[i-1,1]) | (close[i-1] < final_bands.iloc[i-1,1]):
+                final_bands.iloc[i,1] = lower_band[i]
+            else:
+                final_bands.iloc[i,1] = final_bands.iloc[i-1,1]
+
+        if i == 0:
+            supertrend.iloc[i, 0] = 0
+        elif supertrend.iloc[i-1, 0] == final_bands.iloc[i-1, 0] and close[i] < final_bands.iloc[i, 0]:
+            supertrend.iloc[i, 0] = final_bands.iloc[i, 0]
+        elif supertrend.iloc[i-1, 0] == final_bands.iloc[i-1, 0] and close[i] > final_bands.iloc[i, 0]:
+            supertrend.iloc[i, 0] = final_bands.iloc[i, 1]
+        elif supertrend.iloc[i-1, 0] == final_bands.iloc[i-1, 1] and close[i] > final_bands.iloc[i, 1]:
+            supertrend.iloc[i, 0] = final_bands.iloc[i, 1]
+        elif supertrend.iloc[i-1, 0] == final_bands.iloc[i-1, 1] and close[i] < final_bands.iloc[i, 1]:
+            supertrend.iloc[i, 0] = final_bands.iloc[i, 0]
+
+        if close[i] > supertrend.iloc[i, 0]:
+            upt.append(supertrend.iloc[i, 0])
+            dt.append(np.nan)
+        elif close[i] < supertrend.iloc[i, 0]:
+            upt.append(np.nan)
+            dt.append(supertrend.iloc[i, 0])
+        else:
+            upt.append(np.nan)
+            dt.append(np.nan)  
+        
+        
+    supertrend = supertrend.set_index(upper_band.index)
+    supertrend = supertrend.dropna()[1:]
+  
+    st, upt, dt = pd.Series(supertrend.iloc[:, 0]), pd.Series(upt), pd.Series(dt)
+    #upt.index, dt.index = supertrend.index, supertrend.index
+    
+    return st, upt, dt
 
 def get_supertrend(high, low, close, lookback, multiplier):
     # ATR
@@ -91,9 +159,9 @@ def backtest(ins,plot=True):
     test = get_candlestick_data(ins,5000,"M5")
     test['EMA 200'] = test['Close'].ewm(200).mean()
     test['Stoch RSI'], test['Stoch RSI MA'] = STOCHRSI(test['Close'])
-    test['strend 3'],test['s_up_3'],test['s_down_3'] = get_supertrend(test['High'],test['Low'],test['Close'],12,3)
-    test['strend 2'],test['s_up_2'],test['s_down_2'] = get_supertrend(test['High'],test['Low'],test['Close'],11,2)
-    test['strend 1'],test['s_up_1'],test['s_down_1'] = get_supertrend(test['High'],test['Low'],test['Close'],10,1)
+    test['strend 3'],test['s_up_3'],test['s_down_3'] = supertrend(test['High'],test['Low'],test['Close'],12,3)
+    test['strend 2'],test['s_up_2'],test['s_down_2'] = supertrend(test['High'],test['Low'],test['Close'],11,2)
+    test['strend 1'],test['s_up_1'],test['s_down_1'] = supertrend(test['High'],test['Low'],test['Close'],10,1)
 
     #Condition 1 (Above/Below 200 EMA)
     test['Long Condition 1'] = test['Close'] > test['EMA 200']
@@ -104,13 +172,13 @@ def backtest(ins,plot=True):
     test['Short Condition 2'] = (test['Stoch RSI'] > 80) & (test['Stoch RSI'] < test['Stoch RSI MA']) & (test['Stoch RSI'].shift(1) >= test['Stoch RSI MA'].shift(1))
 
     #Condtion 3 (At least two supertrends are above/below price)
-    strend1_long = test['strend 1'] > test['Close']
-    strend2_long = test['strend 2'] > test['Close']
-    strend3_long = test['strend 3'] > test['Close']
+    strend1_long = test['strend 1'] < test['Close']
+    strend2_long = test['strend 2'] < test['Close']
+    strend3_long = test['strend 3'] < test['Close']
     test['Long Condition 3'] = (strend1_long & strend2_long) | (strend2_long & strend3_long) | (strend1_long & strend3_long) | (strend1_long & strend2_long & strend3_long)
-    strend1_short = test['strend 1'] < test['Close']
-    strend2_short = test['strend 2'] < test['Close']
-    strend3_short = test['strend 3'] < test['Close']
+    strend1_short = test['strend 1'] > test['Close']
+    strend2_short = test['strend 2'] > test['Close']
+    strend3_short = test['strend 3'] > test['Close']
     test['Short Condition 3'] = (strend1_short & strend2_short) | (strend2_short & strend3_short) | (strend1_short & strend3_short) | (strend1_short & strend2_short & strend3_short)
 
     #Buy/Sell signals (All three conditions)

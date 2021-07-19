@@ -13,7 +13,7 @@ df = get_candlestick_data("EUR_USD",500,"M5")
 # close < close_bars_ago THEN short
 # - 2 Variables: period and daysback
 
-def momentum_big_range(df,period=10,daysback=10):
+def momentum_big_range(df,period=2,daysback=2):
     """
     [momentum_big_range] creates a [buy] and [sell] column in [df]
     """
@@ -35,6 +35,7 @@ def momentum_big_range(df,period=10,daysback=10):
     df['Buy'], df['Sell'] = buy,sell
 
 momentum_big_range(df,15,3)
+plt.title("Momentum entry")
 plt.plot(df['Close'])
 plt.plot(df['Buy'],color='g',marker='^')
 plt.plot(df['Sell'],color='r',marker='v')
@@ -80,9 +81,16 @@ def mean_reversion(df,length=10):
     df['Buy'], df['Sell'] = buy,sell
 
 mean_reversion(df)
+plt.title('Mean reversion entry')
+plt.subplot(2,1,1)
 plt.plot(df['Close'])
+plt.plot(df['Close'].ewm(200).mean())
 plt.plot(df['Buy'],color='g',marker='^')
 plt.plot(df['Sell'],color='r',marker='v')
+
+plt.subplot(2,1,2)
+plt.bar(df.index,df['Volume'])
+plt.plot(df['Volume SMA'])
 plt.show()
 
 
@@ -105,6 +113,7 @@ def breakout(df,length=20):
     df['Buy'], df['Sell'] = buy,sell
 
 breakout(df)
+plt.title('Breakout Entry')
 plt.plot(df['Close'])
 plt.plot(df['Buy'],color='g',marker='^')
 plt.plot(df['Sell'],color='r',marker='v')

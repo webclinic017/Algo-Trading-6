@@ -51,24 +51,6 @@ def get_sentiment_dict(ticker):
                 'neu': round(neu/len(scores),3)}
     
     return temp, averages
-    
-
-def get_current_price(ticker):
-    """
-    type ticker: string, uppercase, length < 5
-    rtype: float
-    """
-    url = f'https://www.marketwatch.com/investing/stock/{ticker}' #Must have 3.6 or up
-    page = requests.get(url=url)
-    soup = BeautifulSoup(page.content, 'html.parser')
-    price = soup.find('bg-quote', {'field':'Last'})
-    if price:
-        string = price.text
-        index = string.find(',')
-        if index > 0:
-            string = string[:index] + string[index+1:]
-        return float(string)
-    return 0
 
 def get_sentiment(ticker):
     """

@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 from scipy.signal import argrelmin,argrelmax
 
 def ADX(df,n):
@@ -47,6 +46,45 @@ def ADX(df,n):
             ADX.append(((n-1)*ADX[j-1] + DX[j])/n)
     df['ADX']=np.array(ADX)
 
+def ASH(df,mode='RSI',ma_type='WMA',length=9,smooth=3,alma_offset=0.85,alma_sigma=6):
+    "Absolute Strength Histogram (ASH)"
+    Price1 = df['Close'].rolling(1).mean()
+    Price2 = df['Close'].shift(1).rolling(1).mean()
+
+    #RSI
+    Bulls0 = 0.5*(abs(Price1-Price2)+(Price1-Price2))
+    Bears0 = 0.5*(abs(Price1-Price2)-(Price1-Price2))
+
+    #STOCHASTIC
+    Bulls1 = Price1 - Price1.rolling(length).min()
+    Bears1 = Price1.rolling(length).max()- Price1
+
+    #ADX
+    Bulls2 = 0.5*(abs(df['High']-df['High'].shift(1))+(df['High']-df['High'].shift(1)))
+    Bears2 = 0.5*(abs(df['Low'].shift(1)-df['Low'])+(df['Low'].shift(1)-df['Low']))
+
+    df['Bulls'] = Bulls0 if mode == "RSI"  else (Bulls1 if mode == "STOCHASTIC" else Bulls2)
+    df['Bears'] = Bears0 if mode == "RSI" else (Bears1 if mode == "STOCHASTIC" else Bears2)
+    if ma_type == 'SMA': #Simple
+        df['AvgBulls']=df['Bulls'].rolling(length).mean()
+        df['SmthBulls'] = df['AvgBulls'].rolling(smooth).mean()
+        df['AvgBears']=df['Bears'].rolling(length).mean()
+        df['SmthBears'] = df['AvgBears'].rolling(smooth).mean()
+    elif ma_type == 'EMA': #Exponential
+        df['AvgBulls']=df['Bulls'].ewm(length,min_periods=length).mean()
+        df['SmthBulls']=df['AvgBulls'].ewm(smooth,min_periods=smooth).mean()
+        df['AvgBears']=df['Bears'].ewm(length,min_periods=length).mean()
+        df['SmthBears']=df['AvgBears'].ewm(smooth,min_periods=smooth).mean()
+    elif ma_type == 'WMA': #Weighted
+        n = length
+        s = smooth
+        df['AvgBulls']=df['Bulls'].rolling(n).apply(lambda x: x[::-1].cumsum().sum() * 2 / n / (n + 1))
+        df['SmthBulls']=df['AvgBulls'].rolling(s).apply(lambda x: x[::-1].cumsum().sum() * 2 / s / (s + 1))
+        df['AvgBears']=df['Bears'].rolling(n).apply(lambda x: x[::-1].cumsum().sum() * 2 / n / (n + 1))
+        df['SmthBears']=df['AvgBears'].rolling(s).apply(lambda x: x[::-1].cumsum().sum() * 2 / s / (s + 1))
+
+    df['difference'] = abs(df['SmthBulls'] - df['SmthBears'])
+
 def ATR(df,n=14):
     "function to calculate True Range and Average True Range"
     df['H-L']=abs(df['High']-df['Low'])
@@ -65,36 +103,29 @@ def BollingerBand(df,n):
     df["BB_width"] = df["BB_up"] - df["BB_dn"]
     df.dropna(inplace=True)
 
+def cipherB(df,multiplier=150,period=60,chlen=9,avg=12,malen=3):
+    #Money Flow
+    df['temp'] = (((df['Close'] - df['Open']) / (df['High'] - df['Low'])) * multiplier)
+    df['temp'] = np.where(np.isnan(df['temp']),0,df['temp'])
+    df['Money Flow'] = df['temp'].rolling(period).mean() - 2.5
+    df.drop(['temp'],axis=1,inplace = True)
+    
+    #Wave Trend
+    df['hlc3'] = (df['High'] + df['Low'] + df['Close'])/3
+    df['esa'] = df['hlc3'].ewm(chlen).mean()
+    df['de'] = abs(df['hlc3'] - df['esa']).ewm(chlen).mean()
+    df['ci'] = (df['hlc3'] - df['esa']) / (0.015 * df['de'])
+    df['ci'] = np.where(np.isnan(df['ci']),0,df['ci'])
+    df['wt1'] = df['ci'].ewm(avg).mean()
+    df['wt2'] = df['wt1'].rolling(malen).mean()
+    df.drop(['hlc3','esa','de','ci'],axis=1,inplace=True)
+
 def CMF(df,n=21):
     """Chaikan Money Flow"""
     df['CMF'] = ((((df['Close']-df['Low']) - (df['High'] - df['Close']))/(df['High'] - df['Low']))*df['Volume'])/df['Volume'].rolling(n).sum()
 
 def EMA(df,n):
     df[f'EMA {n}'] = df['Close'].ewm(n,min_periods=n).mean()
-
-def Engulfing(df):
-    signals = [np.nan]
-    for i in range(len(df)):
-        if i > 0:
-            prev_red = df['Close'][i-1] < df['Open'][i-1]
-            cur_green = df['Close'][i] > df['Open'][i]
-            if prev_red and cur_green:
-                prev_width = abs(df['Close'][i-1]-df['Open'][i-1])
-                cur_width = abs(df['Close'][i] - df['Open'][i])
-                if prev_width < cur_width:
-                    signals.append(100) #Bullish signal at price
-                else:
-                    signals.append(0) #no signal
-            elif not prev_red and not cur_green:
-                prev_width = abs(df['Close'][i-1]-df['Open'][i-1])
-                cur_width = abs(df['Close'][i] - df['Open'][i])
-                if prev_width < cur_width:
-                    signals.append(-100) #Bearish signal at price
-                else:
-                    signals.append(0) #no signal
-            else:
-                signals.append(0)
-    df['Engulfing'] = signals
 
 def fractals(df):
     bear_fractals = [np.nan]*len(df)
@@ -282,74 +313,18 @@ def SSL_Channel(df, n=14):
     df['SSL_up'] = up
     df['SSL_dn'] = dn
 
-def supertrend(high, low, close, lookback, multiplier):
-    # ATR
-    tr1 = pd.DataFrame(high - low)
-    tr2 = pd.DataFrame(abs(high - close.shift(1)))
-    tr3 = pd.DataFrame(abs(low - close.shift(1)))
-    frames = [tr1, tr2, tr3]
-    tr = pd.concat(frames, axis = 1, join = 'inner').max(axis = 1)
-    atr = tr.ewm(lookback).mean()
-    # H/L AVG AND BASIC UPPER & LOWER BAND
-    hl_avg = (high + low) / 2
-    upper_band = (hl_avg + multiplier * atr).dropna()
-    lower_band = (hl_avg - multiplier * atr).dropna()
-    # FINAL UPPER BAND
-    final_bands = pd.DataFrame(columns = ['upper', 'lower'])
-    final_bands.iloc[:,0] = [x for x in upper_band - upper_band]
-    final_bands.iloc[:,1] = final_bands.iloc[:,0]
-    for i in range(len(final_bands)):
-        if i == 0:
-            final_bands.iloc[i,0] = 0
-        else:
-            if (upper_band[i] < final_bands.iloc[i-1,0]) | (close[i-1] > final_bands.iloc[i-1,0]):
-                final_bands.iloc[i,0] = upper_band[i]
-            else:
-                final_bands.iloc[i,0] = final_bands.iloc[i-1,0]
-    # FINAL LOWER BAND
-    for i in range(len(final_bands)):
-        if i == 0:
-            final_bands.iloc[i, 1] = 0
-        else:
-            if (lower_band[i] > final_bands.iloc[i-1,1]) | (close[i-1] < final_bands.iloc[i-1,1]):
-                final_bands.iloc[i,1] = lower_band[i]
-            else:
-                final_bands.iloc[i,1] = final_bands.iloc[i-1,1]
-    # SUPERTREND
-    supertrend = pd.DataFrame(columns = [f'supertrend_{lookback}'])
-    supertrend.iloc[:,0] = [x for x in final_bands['upper'] - final_bands['upper']]
-    
-    for i in range(len(supertrend)):
-        if i == 0:
-            supertrend.iloc[i, 0] = 0
-        elif supertrend.iloc[i-1, 0] == final_bands.iloc[i-1, 0] and close[i] < final_bands.iloc[i, 0]:
-            supertrend.iloc[i, 0] = final_bands.iloc[i, 0]
-        elif supertrend.iloc[i-1, 0] == final_bands.iloc[i-1, 0] and close[i] > final_bands.iloc[i, 0]:
-            supertrend.iloc[i, 0] = final_bands.iloc[i, 1]
-        elif supertrend.iloc[i-1, 0] == final_bands.iloc[i-1, 1] and close[i] > final_bands.iloc[i, 1]:
-            supertrend.iloc[i, 0] = final_bands.iloc[i, 1]
-        elif supertrend.iloc[i-1, 0] == final_bands.iloc[i-1, 1] and close[i] < final_bands.iloc[i, 1]:
-            supertrend.iloc[i, 0] = final_bands.iloc[i, 0]
-    supertrend = supertrend.set_index(upper_band.index)
-    supertrend = supertrend.dropna()[1:]
-    # ST UPTREND/DOWNTREND
-    upt = []
-    dt = []
-    close = close.iloc[len(close) - len(supertrend):]
-    for i in range(len(supertrend)):
-        if close[i] > supertrend.iloc[i, 0]:
-            upt.append(supertrend.iloc[i, 0])
-            dt.append(np.nan)
-        elif close[i] < supertrend.iloc[i, 0]:
-            upt.append(np.nan)
-            dt.append(supertrend.iloc[i, 0])
-        else:
-            upt.append(np.nan)
-            dt.append(np.nan)    
-    st, upt, dt = pd.Series(supertrend.iloc[:, 0]), pd.Series(upt), pd.Series(dt)
-    upt.index, dt.index = supertrend.index, supertrend.index
-    
-    return st, upt, dt
+def SuperTrend(df,m=1,n=10):
+    """function to calculate Supertrend given historical candle data
+        m = multiplier
+        n = n day ATR"""
+    ATR(df,n=5) # Usually ATR_5 is used for the calculation
+    df["B-U"]=((df['High']+df['Low'])/2) + m*df['ATR']
+    df["B-L"]=((df['High']+df['Low'])/2) - m*df['ATR']
+    df["temp1"] = df["B-U"]
+    df["temp2"] = df["B-L"]
+    df["F-U"]= np.where((df["B-U"]<df["temp1"].shift(1))|(df["Close"].shift(1)>df["temp1"].shift(1)),df["B-U"],df["temp1"].shift(1))
+    df["F-L"]= np.where((df["B-L"]>df["temp2"].shift(1))|(df["Close"].shift(1)<df["temp2"].shift(1)),df["B-L"],df["temp2"].shift(1))
+    df["Strend"] = np.where(df["Close"]<=df["F-U"],df["F-U"],df["F-L"])
 
 def TDI(df, m=1.6185):
     """Traders Dynamic Index"""
@@ -371,4 +346,7 @@ def WaveTrend(df, n1=10, n2=21):
 def WilliamsAlligator(df):
     """Alligator indicator"""
     pass
+
+def WMA(df,n):
+    df[f'WMA {n}'] = df.rolling(n).apply(lambda x: x[::-1].cumsum().sum() * 2 / n / (n + 1))
 

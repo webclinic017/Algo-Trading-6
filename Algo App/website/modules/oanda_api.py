@@ -9,6 +9,19 @@ access_token = "7504cc953a3efe6542a1b0181f7a69b0-f5e662a814de4b0d43ea9c206a8e44c
 account_id = "101-001-17749174-001"
 authorization_header = {'Authorization':f'Bearer {access_token}','Accept-Datetime-Format':'UNIX', 'Content-type':'application/json'}
 
+def calculate_qty(price,stop_loss,instrument,risk_pct=0.01,balance=10_000):
+    if instrument[:3] == "USD": #Then USD value is 
+        risk_amt = balance * risk_pct
+        per_share_risk = price-stop_loss
+        return risk_amt//(per_share_risk/price)
+    elif instrument[-3:] == "USD": #Then price 
+        risk_amt = balance * risk_pct
+        per_share_risk = price-stop_loss
+        return risk_amt//per_share_risk
+    else:
+        print('Pair does not contain USD')
+        return 0
+
 def get_candlestick_data(instrument,periods,granularity):
     """Returns pandas dataframe of ohlc and volume data"""
     end_point = f"v3/instruments/{instrument}/candles?granularity={granularity}&count={periods}"
@@ -75,12 +88,18 @@ def limit_order(instrument, price, qty, stop_loss, take_profit):
     dic = json.loads(r.text)
     if 'errorMessage' in dic.keys():
         print(f'\tUnable to complete order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit}')
-        print(dic['Error: \nerrorMessage\n'])
     else:
         print(f'\tLimit Order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit} | completed')
 
 def market_order(instrument, qty, stop_loss, take_profit):
     """Sends market order, FOK: filled or killed"""
+    if stop_loss >= 10:
+        stop_loss = round(stop_loss,3)
+        take_profit = round(take_profit,3)
+        qty = qty * 100
+    else:
+        stop_loss = round(stop_loss,5)
+        take_profit = round(take_profit,5)
     end_point = f"v3/accounts/{account_id}/orders"
     data =  {"order": {
                 "stopLossOnFill": {

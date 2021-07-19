@@ -1,17 +1,19 @@
 {% extends "base.html" %} {% block title %}Home{% endblock %} {% block content%}
-<h1 align="center">Streams</h1>
+<h1 align="center">Forex Algorithms</h1>
 <form action="/" method="post">
-    <div>
-        <label for="strategy">Stoch Scalp Strat:</label>
-        <button name="strategy" value="strat1">Start</button>
+    {% for tup in strats %}
+    <div class="card" style="width: 18rem;">
+        <div class="card-body">
+            <h5 class="card-title">{{tup[0]}}</h5>
+            {% if tup[2] %}
+            <p>Status: Active</p>
+            <button class="btn btn-danger" name="strategy" value="{{tup[0]}}">Stop</button>
+            {% else %}
+            <p>Status: Innactive</p>
+            <button class="btn btn-success" name="strategy" value="{{tup[0]}}">Start</button>
+            {% endif %}
+        </div>
     </div>
-    <div>
-        <label for="strategy">Simple 5 SMA cross Strat:</label>
-        <button name="strategy" value="strat2">Start</button>
-    </div>
-    <div>
-        <label for="strategy">Triple SuperTrend:</label>
-        <button name="strategy" value="strat3">Start</button>
-    </div>
+    {% endfor %}
 </form>
 {% endblock %}
