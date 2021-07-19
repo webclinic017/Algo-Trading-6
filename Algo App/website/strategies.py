@@ -64,7 +64,7 @@ class CipherB:
         try:
             print('\nStarting Cipher B Algorithm...')
             while self.run:
-                if dt.datetime.now().second == 40  and get_account()['openPositionCount'] == 0 and len(get_account()['orders']) == 0:
+                if dt.datetime.now().second == 0  and get_account()['openPositionCount'] == 0 and len(get_account()['orders']) == 0:
                     self.update_data()
                     print(f'\n---- {time.asctime()}: Looking for Signals ---- \n')
                     df = self.data
