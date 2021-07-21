@@ -4,9 +4,8 @@ from flask.helpers import url_for
 from flask_login import login_required, current_user
 from .chartlib import consolidating_stocks, breakout_stocks
 from .scraper import get_tickers, get_SANDP_tickers, get_sentiment
-from . import db
 from .strategies import CipherB, HalfTrend
-from .talib_patterns import candlestick_patterns
+from .modules.patterns import patterns
 import talib
 import threading
 import os
@@ -56,7 +55,8 @@ def updateData():
     tickers = get_SANDP_tickers()
     data = yf.download(tickers, start="2020-01-01", end=str(dt.date.today()))
     for symbol in tickers:
-        data[symbol].to_csv(f'datasets/daily/{symbol}.csv')
+        if symbol in data:
+            data[symbol].to_csv(f'{os.getcwd()}/website/datasets/daily/{symbol}.csv')
 
     return {
         "code": "success"
@@ -99,8 +99,8 @@ def candle():
         stocks[symbol] = {'company': symbol}
 
     if pattern:
-        for filename in os.listdir('datasets/daily'):
-            df = pd.read_csv('datasets/daily/{}'.format(filename))
+        for filename in os.listdir(os.getcwd() + '/website/datasets/daily'):
+            df = pd.read_csv(os.getcwd() + '/website/datasets/daily/{}'.format(filename))
             pattern_function = getattr(talib, pattern)
             symbol = filename.split('.')[0]
 
@@ -117,7 +117,7 @@ def candle():
             except Exception as e:
                 print('failed on filename: ', filename)
 
-    return render_template('candle.html', user=current_user, candlestick_patterns=candlestick_patterns, stocks=stocks, pattern=pattern)
+    return render_template('candle.html', user=current_user, candlestick_patterns=patterns, stocks=stocks, pattern=pattern)
 
 @views.route('/')
 @login_required

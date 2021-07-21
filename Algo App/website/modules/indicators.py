@@ -163,44 +163,44 @@ def half_trend(df,amplitude=2,channelDeviation=2):
     df['lowma'] = df['Low'].rolling(amplitude).mean()
     
     for i in range(1,len(df)):
-        df['trend'][i] = df['trend'][i-1]
-        df['nextTrend'][i] = 1 - df['trend'][i-1]
-        df['maxLowPrice'][i] = df['maxLowPrice'][i-1]
-        df['minHighPrice'][i] = df['minHighPrice'][i-1]
-        df['up'][i] = df['up'][i-1]
-        df['down'][i] = df['down'][i-1]
+        df['trend'].iloc[i] = df['trend'][i-1]
+        df['nextTrend'].iloc[i] = 1 - df['trend'][i-1]
+        df['maxLowPrice'].iloc[i] = df['maxLowPrice'][i-1]
+        df['minHighPrice'].iloc[i] = df['minHighPrice'][i-1]
+        df['up'].iloc[i] = df['up'][i-1]
+        df['down'].iloc[i] = df['down'][i-1]
         
         if df['nextTrend'][i] == 1:
-            df['maxLowPrice'][i] = max(df['lowPrice'][i], df['maxLowPrice'][i])
+            df['maxLowPrice'].iloc[i] = max(df['lowPrice'][i], df['maxLowPrice'][i])
 
             if df['highma'][i] < df['maxLowPrice'][i] and df['Close'][i] < df['Low'][i-1]:
-                df['trend'][i] = 1
-                df['nextTrend'][i] = 0
-                df['minHighPrice'][i] = df['highPrice'][i]
+                df['trend'].iloc[i] = 1
+                df['nextTrend'].iloc[i] = 0
+                df['minHighPrice'].iloc[i] = df['highPrice'][i]
         else:
-            df['minHighPrice'][i] = min(df['highPrice'][i], df['minHighPrice'][i])
+            df['minHighPrice'].iloc[i] = min(df['highPrice'][i], df['minHighPrice'][i])
 
             if df['lowma'][i] > df['minHighPrice'][i] and df['Close'][i] > df['High'][i-1]:
-                df['trend'][i] = 0
-                df['nextTrend'][i] = 1
-                df['maxLowPrice'][i] = df['lowPrice'][i]
+                df['trend'].iloc[i] = 0
+                df['nextTrend'].iloc[i] = 1
+                df['maxLowPrice'].iloc[i] = df['lowPrice'][i]
         
         if df['trend'][i] == 0:
             if df['trend'][i-1] and df['trend'][i-1] != 0:
-                df['up'][i] = df['down'][i] if np.isnan(df['down'][i-1]) else df['down'][i-1]
-                df['arrowUp'][i] = df['up'][i] - df['atr2'][i]
+                df['up'].iloc[i] = df['down'][i] if np.isnan(df['down'][i-1]) else df['down'][i-1]
+                df['arrowUp'].iloc[i] = df['up'][i] - df['atr2'][i]
             else:
-                df['up'][i] = df['maxLowPrice'][i] if np.isnan(df['up'][i-1]) else max(df['maxLowPrice'][i], df['up'][i-1])
-            df['atrHigh'][i] = df['up'][i] + df['dev'][i]
-            df['atrLow'][i] = df['up'][i] - df['dev'][i]
+                df['up'].iloc[i] = df['maxLowPrice'][i] if np.isnan(df['up'][i-1]) else max(df['maxLowPrice'][i], df['up'][i-1])
+            df['atrHigh'].iloc[i] = df['up'][i] + df['dev'][i]
+            df['atrLow'].iloc[i] = df['up'][i] - df['dev'][i]
         else:
             if not np.isnan(df['trend'][i-1]) and df['trend'][i-1] != 1:
-                df['down'][i] = df['up'][i] if np.isnan(df['up'][i-1]) else df['up'][i-1]
-                df['arrowDown'][i] = df['down'][i] + df['atr2'][i]
+                df['down'].iloc[i] = df['up'][i] if np.isnan(df['up'][i-1]) else df['up'][i-1]
+                df['arrowDown'].iloc[i] = df['down'][i] + df['atr2'][i]
             else:
-                df['down'][i] = df['minHighPrice'][i] if np.isnan(df['down'][i-1]) else min(df['minHighPrice'][i], df['down'][i-1])
-            df['atrHigh'][i] = df['down'][i] + df['dev'][i]
-            df['atrLow'][i] = df['down'][i] - df['dev'][i]
+                df['down'].iloc[i] = df['minHighPrice'][i] if np.isnan(df['down'][i-1]) else min(df['minHighPrice'][i], df['down'][i-1])
+            df['atrHigh'].iloc[i] = df['down'][i] + df['dev'][i]
+            df['atrLow'].iloc[i] = df['down'][i] - df['dev'][i]
 
     df['ht'] = np.where(df['trend'] == 0, df['up'], df['down'])
     df['ht'] = np.where(df['ht'] == 0,np.nan,df['ht'])
