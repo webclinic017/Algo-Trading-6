@@ -58,19 +58,19 @@ class HalfTrend:
         try:
             print('\nStarting HalfTrend Algorithm...')
             while self.run:
-                if dt.datetime.now().second == 30 and api.get_account()['openPositionCount'] == 0 and len(api.get_account()['orders']) == 0:
+                if dt.datetime.now().second == 30 and len(api.get_open_positions()['positions']) == 0 and len(api.get_orders()['orders']) == 0:
                     self.update_data()
                     print(f'\n---- {time.asctime()}: Looking for Signals ---- \n')
                     df = self.data
                     c = df['Close'][-1]
 
-                    if len(api.get_account()['orders']) == 0 and df['Buy'][-1]:
+                    if len(api.get_orders()['orders']) == 0 and df['Buy'][-1]:
                         stop_loss = c - self.atr_mult * df['ATR'][-1]
                         take_profit = c + self.rr_mult*(c-stop_loss)
                         qty = api.calculate_qty(c,stop_loss,self.instrument,balance=api.get_balance())
                         api.market_order(self.instrument,qty,stop_loss,take_profit)
                         print("\tLong Signal Detected")
-                    elif len(api.get_account()['orders']) == 0 and df['Sell'][-1]:
+                    elif len(api.get_orders()['orders']) == 0 and df['Sell'][-1]:
                         stop_loss = c + self.atr_mult * df['ATR'][-1]
                         take_profit = c - self.rr_mult*(stop_loss-c)
                         qty = api.calculate_qty(c,stop_loss,self.instrument,balance=api.get_balance())
@@ -144,20 +144,20 @@ class CipherB:
         try:
             print('\nStarting Cipher B Algorithm...')
             while self.run:
-                if dt.datetime.now().second == 0  and api.get_account()['openPositionCount'] == 0 and len(api.get_account()['orders']) == 0:
+                if dt.datetime.now().second == 30 and len(api.get_open_positions()['positions']) == 0 and len(api.get_orders()['orders']) == 0:
                     self.update_data()
                     print(f'\n---- {time.asctime()}: Looking for Signals ---- \n')
                     df = self.data
                     print(f'\t{df.index[-1]}')
                     c = df['Close'][-1]
 
-                    if len(api.get_account()['orders']) == 0 and df['Buy'][-1]:
+                    if len(api.get_orders()['orders']) == 0 and df['Buy'][-1]:
                         stop_loss = c - self.atr_mult * df['ATR'][-1]
                         take_profit = c + self.rr_mult*(c-stop_loss)
                         qty = api.calculate_qty(c,stop_loss,"EUR_USD",balance=api.get_balance())
                         api.market_order(self.instrument,qty,stop_loss,take_profit)
                         print("\tLong Signal Detected")
-                    elif len(api.get_account()['orders']) == 0 and df['Sell'][-1]:
+                    elif len(api.get_orders()['orders']) == 0 and df['Sell'][-1]:
                         stop_loss = c + self.atr_mult * df['ATR'][-1]
                         take_profit = c - self.rr_mult*(stop_loss-c)
                         qty = api.calculate_qty(c,stop_loss,"EUR_USD",balance=api.get_balance())
