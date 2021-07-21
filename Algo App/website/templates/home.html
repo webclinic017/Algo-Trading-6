@@ -1,19 +1,13 @@
-{% extends "base.html" %} {% block title %}Home{% endblock %} {% block content%}
-<h1 align="center">Forex Algorithms</h1>
-<form action="/" method="post">
-    {% for tup in strats %}
-    <div class="card" style="width: 18rem;">
-        <div class="card-body">
-            <h5 class="card-title">{{tup[0]}}</h5>
-            {% if tup[2] %}
-            <p>Status: Active</p>
-            <button class="btn btn-danger" name="strategy" value="{{tup[0]}}">Stop</button>
-            {% else %}
-            <p>Status: Innactive</p>
-            <button class="btn btn-success" name="strategy" value="{{tup[0]}}">Start</button>
-            {% endif %}
-        </div>
-    </div>
-    {% endfor %}
-</form>
+{% extends "base.html" %} 
+{% block title %}Home{% endblock %} 
+{% block content%}
+    <h1 align="center">Market Summary</h1>
+    <table>
+        <tr>
+            <td colspan='3'>
+                <img src="https://finviz.com/chart.ashx?t=SPY&ty=c&ta=1&p=d&s=l" alt="">
+            </td>
+        </tr>
+    </table>
+    
 {% endblock %}

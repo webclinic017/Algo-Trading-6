@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Sentiment{% endblock %}
+{% block content %}
+    
+    <h1>Stock Sentiment</h1>
+    
+    <form action="/sentiment" method='POST'>
+        <label for="ticker">Enter Ticker Symbol:</label>
+        <input name='ticker' type="text" placeholder="ex: AAPL">
+        <input type="submit">
+    </form>
+
+    {% if ticker and sentiment %}
+    <h1>{{ticker}} sentiment: {{sentiment}}</h1>
+    {% endif %}
+
+    {% endblock %}

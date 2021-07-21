@@ -1,9 +1,87 @@
 from .modules.oanda_api import calculate_qty,market_order,limit_order, get_candlestick_data, get_balance, get_account
 from talib import STOCHRSI, ATR
-from .modules.indicators import cipherB, ATR
+from .modules.indicators import cipherB, ATR, half_trend, money_flow, wave_trend, RSI
 import time
 import datetime as dt
 import numpy as np
+
+class HalfTrend:
+    def __init__(self,candle_span='M5'):
+        self.instrument = 'EUR_USD'
+        self.candle_span = candle_span
+        self.update_data()
+        self.rr_mult = 2.5
+        self.atr_mult = 1
+        self.run = False
+
+    def update_data(self):
+        df = get_candlestick_data(self.instrument,300,self.candle_span)
+        df['EMA 200'] = df['Close'].ewm(200,min_periods=200).mean()
+        money_flow(df)
+        wave_trend(df)
+        RSI(df,n=2)
+        ATR(df,n=100)
+        df.dropna(axis=0,inplace=True)
+        half_trend(df)
+
+        #Half Trend Crosses
+        bull_cross = np.isnan(df.shift(1)['up']) & ~(np.isnan(df['up']))
+        bear_cross = np.isnan(df.shift(1)['dn']) & ~(np.isnan(df['dn']))
+
+        #Above/Below 200 EMA
+        above_200_ema = df['Close'] > df['EMA 200']
+        below_200_ema = df['Close'] < df['EMA 200']
+
+        #Money Flow above/below 0
+        mf_above_0 = df['Money Flow'] > 0
+        mf_below_0 = df['Money Flow'] < 0
+
+        #Time not within 5:00pm to 8:00pm EST
+        def get_hour(date):
+            col_index = date.find(':')
+            hour = int(date[col_index-2:col_index])
+            return hour
+
+        df['Hour'] = [get_hour(str(date)) for date in df.index]
+        good_time = ~((df['Hour'] >= 17) & (df['Hour'] < 20))
+
+        #Buy and Sell Signals
+        df['Buy'] = bull_cross & above_200_ema & mf_above_0 & good_time
+        df['Sell'] = bear_cross & below_200_ema & mf_below_0 & good_time
+        
+        self.data = df
+
+    def start(self):
+        self.run = True
+        try:
+            print('\nStarting HalfTrend Algorithm...')
+            while self.run:
+                if dt.datetime.now().second == 30 and get_account()['openPositionCount'] == 0 and len(get_account()['orders']) == 0:
+                    self.update_data()
+                    print(f'\n---- {time.asctime()}: Looking for Signals ---- \n')
+                    df = self.data
+                    c = df['Close'][-1]
+
+                    if len(get_account()['orders']) == 0 and df['Buy'][-1]:
+                        stop_loss = c - self.atr_mult * df['ATR'][-1]
+                        take_profit = c + self.rr_mult*(c-stop_loss)
+                        qty = calculate_qty(c,stop_loss,self.instrument,balance=get_balance())
+                        market_order(self.instrument,qty,stop_loss,take_profit)
+                        print("\tLong Signal Detected")
+                    elif len(get_account()['orders']) == 0 and df['Sell'][-1]:
+                        stop_loss = c + self.atr_mult * df['ATR'][-1]
+                        take_profit = c - self.rr_mult*(stop_loss-c)
+                        qty = calculate_qty(c,stop_loss,self.instrument,balance=get_balance())
+                        market_order(self.instrument,qty,stop_loss,take_profit)
+                        print("Short Signal Detected")
+                    else:
+                        print('\tNo Signals found')
+            print('\nStopping HalfTrend Algorithm...')
+
+        except Exception as e:
+            print(e)
+            print('\nAn error occured, restarting...')
+            self.start()
 
 class CipherB:
     def __init__(self,candle_span='M5'):

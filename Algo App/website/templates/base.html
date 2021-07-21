@@ -31,6 +31,11 @@
         <div class="navbar-nav">
           {% if user.is_authenticated %}
           <a class="nav-item nav-link" id="home" href="/">Home</a>
+          <a class="nav-item nav-link" id="algos" href="/algorithms">Algos</a>
+          <a class="nav-item nav-link" id="breakout" href="/breakout">Breakout Scanner</a>
+          <a class="nav-item nav-link" id="candle" href="/candle">Candlestick Pattern Scanner</a>
+          <a class="nav-item nav-link" id="sentiment" href="/sentiment">Sentiment</a>
+          <a class="nav-item nav-link" id="updateData" href="/updateData">Update Data</a>
           <a class="nav-item nav-link" id="logout" href="/logout">Logout</a>
           {% else %}
           <a class="nav-item nav-link" id="login" href="/login">Login</a>

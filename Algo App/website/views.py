@@ -1,20 +1,27 @@
-from flask import Blueprint, render_template, flash, jsonify, redirect
+from flask import Blueprint, render_template, redirect
 from flask.globals import request
 from flask.helpers import url_for
-from matplotlib.pyplot import get
 from flask_login import login_required, current_user
-from .models import Note
+from .chartlib import consolidating_stocks, breakout_stocks
+from .scraper import get_tickers, get_SANDP_tickers, get_sentiment
 from . import db
-import json
+from .strategies import CipherB, HalfTrend
+from .talib_patterns import candlestick_patterns
+import talib
 import threading
-from .strategies import CipherB
+import os
+import pandas as pd
+import yfinance as yf
+import datetime as dt
 
 views = Blueprint('views', __name__)
 
+#TODO: Make this more robust, refactor into different files
 ##########################################
 #Only Hardcoded part of website
 strats = {}
 strats['CipherB'] = CipherB, CipherB()
+strats['HalfTrend'] = HalfTrend, HalfTrend()
 ##########################################
 
 threads = []
@@ -23,9 +30,9 @@ for strat in strats:
     t = threading.Thread(target=instance.start)
     threads.append(t)
 
-@views.route('/', methods=['GET','POST'])
+@views.route('/algorithms', methods=['GET','POST'])
 @login_required
-def home():
+def algorithms():
     if request.method == "POST":
         strategy_id = request.form.get('strategy')
 
@@ -40,5 +47,79 @@ def home():
                     thread.start()
                 break
         
-        return render_template("home.html", user=current_user, strats=[(s,strats[s],threads[i].isAlive()) for i,s in enumerate(strats)])
-    return render_template("home.html", user=current_user, strats=[(s,strats[s],threads[i].isAlive()) for i,s in enumerate(strats)])
+        return redirect(url_for('views.algorithms'))
+    return render_template("algorithms.html", user=current_user, strats=[(s,strats[s],threads[i].isAlive()) for i,s in enumerate(strats)])
+
+@views.route('/updateData')
+@login_required
+def updateData():
+    tickers = get_SANDP_tickers()
+    data = yf.download(tickers, start="2020-01-01", end=str(dt.date.today()))
+    for symbol in tickers:
+        data[symbol].to_csv(f'datasets/daily/{symbol}.csv')
+
+    return {
+        "code": "success"
+    }
+
+@views.route('/sentiment', methods=["GET", "POST"])
+@login_required
+def sentiment():
+    if request.method == 'POST':
+        ticker = request.form['ticker']
+        sentiment = get_sentiment(ticker)
+    else:
+        ticker = None
+        sentiment = None
+
+    print(ticker, sentiment)
+    return render_template('sentiment.html', user=current_user, sentiment=sentiment, ticker = ticker)
+
+@views.route('/breakout')
+@login_required
+def breakout():
+    pattern = request.args.get('pattern', False)
+    if pattern == 'Consolidating':
+        stocks = consolidating_stocks()
+    elif pattern == 'Breakout':
+        stocks = breakout_stocks()
+    else:
+        stocks = None
+
+    return render_template('breakout.html', user=current_user, pattern = pattern, stocks=stocks)
+
+@views.route('/candle')
+@login_required
+def candle():
+    pattern  = request.args.get('pattern', False)
+    stocks = {}
+
+    tickers = get_tickers()
+    for symbol in tickers:
+        stocks[symbol] = {'company': symbol}
+
+    if pattern:
+        for filename in os.listdir('datasets/daily'):
+            df = pd.read_csv('datasets/daily/{}'.format(filename))
+            pattern_function = getattr(talib, pattern)
+            symbol = filename.split('.')[0]
+
+            try:
+                results = pattern_function(df['Open'], df['High'], df['Low'], df['Close'])
+                last = results.tail(1).values[0]
+
+                if last > 0:
+                    stocks[symbol][pattern] = 'bullish'
+                elif last < 0:
+                    stocks[symbol][pattern] = 'bearish'
+                else:
+                    stocks[symbol][pattern] = None
+            except Exception as e:
+                print('failed on filename: ', filename)
+
+    return render_template('candle.html', user=current_user, candlestick_patterns=candlestick_patterns, stocks=stocks, pattern=pattern)
+
+@views.route('/')
+@login_required
+def home():
+    return render_template("home.html", user=current_user)

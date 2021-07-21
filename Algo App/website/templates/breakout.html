@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Breakout{% endblock %}
+{% block content %}
+    
+    <h1>Breakout Scanner</h1>
+    
+    <form>
+        <select name="pattern">
+            <option value="">-- Select a Pattern --</option>
+            <option value="Consolidating">Consolidating Stocks</option>
+            <option value="Breakout">Breakout Stocks</option>
+        </select>
+        <input type="submit" value="Scan" />
+    </form>
+
+    {% if pattern %}
+        <h1>{{pattern}}</h1>
+    {% endif %}
+    
+    <table>
+        <tr>
+            <th>symbol</th>
+        </tr>
+        {% if stocks %}
+            {% for stock in stocks %}
+            <tr>
+                <td>
+                    {{ stock }}
+                </td>
+            <tr>
+                <td colspan="2">
+                    <img src="https://finviz.com/chart.ashx?t={{ stock }}&ty=c&ta=1&p=d&s=l" />
+                </td>
+            </tr>
+            {% endfor %}
+        {% endif %}
+    </table>
+
+    {% endblock %}

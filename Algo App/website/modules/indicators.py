@@ -141,6 +141,73 @@ def fractals(df):
     df['bull_fractals'] = bull_fractals
     df['bear_fractals'] = bear_fractals
 
+def half_trend(df,amplitude=2,channelDeviation=2):
+    df['trend'] = np.zeros(len(df))
+    df['nextTrend'] = [1] * len(df)
+    df['maxLowPrice'] = df['Low'].shift(1)
+    df['minHighPrice'] = df['High'].shift(1)
+
+    df['up'] = np.zeros(len(df))
+    df['down'] = np.zeros(len(df))
+    df['atrHigh'] = np.zeros(len(df))
+    df['atrLow'] = np.zeros(len(df))
+    df['arrowUp'] = [np.nan] * len(df)
+    df['arrowDown'] = [np.nan] * len(df)
+
+    df['atr2'] = df['ATR'] / 2
+    df['dev'] = channelDeviation * df['atr2']
+
+    df['highPrice'] = df['High'].rolling(amplitude).max()
+    df['lowPrice'] = df['Low'].rolling(amplitude).min()
+    df['highma'] = df['High'].rolling(amplitude).mean()
+    df['lowma'] = df['Low'].rolling(amplitude).mean()
+    
+    for i in range(1,len(df)):
+        df['trend'][i] = df['trend'][i-1]
+        df['nextTrend'][i] = 1 - df['trend'][i-1]
+        df['maxLowPrice'][i] = df['maxLowPrice'][i-1]
+        df['minHighPrice'][i] = df['minHighPrice'][i-1]
+        df['up'][i] = df['up'][i-1]
+        df['down'][i] = df['down'][i-1]
+        
+        if df['nextTrend'][i] == 1:
+            df['maxLowPrice'][i] = max(df['lowPrice'][i], df['maxLowPrice'][i])
+
+            if df['highma'][i] < df['maxLowPrice'][i] and df['Close'][i] < df['Low'][i-1]:
+                df['trend'][i] = 1
+                df['nextTrend'][i] = 0
+                df['minHighPrice'][i] = df['highPrice'][i]
+        else:
+            df['minHighPrice'][i] = min(df['highPrice'][i], df['minHighPrice'][i])
+
+            if df['lowma'][i] > df['minHighPrice'][i] and df['Close'][i] > df['High'][i-1]:
+                df['trend'][i] = 0
+                df['nextTrend'][i] = 1
+                df['maxLowPrice'][i] = df['lowPrice'][i]
+        
+        if df['trend'][i] == 0:
+            if df['trend'][i-1] and df['trend'][i-1] != 0:
+                df['up'][i] = df['down'][i] if np.isnan(df['down'][i-1]) else df['down'][i-1]
+                df['arrowUp'][i] = df['up'][i] - df['atr2'][i]
+            else:
+                df['up'][i] = df['maxLowPrice'][i] if np.isnan(df['up'][i-1]) else max(df['maxLowPrice'][i], df['up'][i-1])
+            df['atrHigh'][i] = df['up'][i] + df['dev'][i]
+            df['atrLow'][i] = df['up'][i] - df['dev'][i]
+        else:
+            if not np.isnan(df['trend'][i-1]) and df['trend'][i-1] != 1:
+                df['down'][i] = df['up'][i] if np.isnan(df['up'][i-1]) else df['up'][i-1]
+                df['arrowDown'][i] = df['down'][i] + df['atr2'][i]
+            else:
+                df['down'][i] = df['minHighPrice'][i] if np.isnan(df['down'][i-1]) else min(df['minHighPrice'][i], df['down'][i-1])
+            df['atrHigh'][i] = df['down'][i] + df['dev'][i]
+            df['atrLow'][i] = df['down'][i] - df['dev'][i]
+
+    df['ht'] = np.where(df['trend'] == 0, df['up'], df['down'])
+    df['ht'] = np.where(df['ht'] == 0,np.nan,df['ht'])
+    
+    df['up'] = np.where(df['trend'] == 1,np.nan,df['ht'])
+    df['dn'] = np.where(df['trend'] == 0,np.nan,df['ht'])
+
 def KijunSen(df,n=26):
     df['Kijun Sen'] = (df['High'].rolling(n).max() + df['High'].rolling(n).min())/2
 
@@ -154,6 +221,12 @@ def MACD(df,a=12,b=26,c=9):
     df["MA_Slow"]=df["Close"].ewm(span=b,min_periods=b).mean()
     df["MACD"]=df["MA_Fast"]-df["MA_Slow"]
     df["Signal"]=df["MACD"].ewm(span=c,min_periods=c).mean()
+
+def money_flow(df,multiplier=150,period=60):
+    df['temp'] = (((df['Close'] - df['Open']) / (df['High'] - df['Low'])) * multiplier)
+    df['temp'] = np.where(np.isnan(df['temp']),0,df['temp'])
+    df['Money Flow'] = df['temp'].rolling(period).mean() - 2.5
+    df.drop(['temp'],axis=1,inplace = True)
 
 def OBV(df):
     """function to calculate On Balance Volume"""
@@ -334,14 +407,15 @@ def TDI(df, m=1.6185):
     df['RSI MA Fast'] = df['RSI'].rolling(2).mean()
     df['RSI MA Slow'] = df['RSI'].rolling(7).mean()
 
-def WaveTrend(df, n1=10, n2=21):
-    df['Avg Price'] = (df['Close']+df['High']+df['Low'])/3
-    df['esa'] = df['Avg Price'].ewm(n1).mean()
-    df['d'] = abs(df['Avg Price']-df['esa']).ewm(n1).mean()
-    df['ci'] = (df['Avg Price']-df['esa'])/(0.015*df['d'])
-    #Plot these vvvv
-    df['tci'] = df['ci'].ewm(n2).mean()
-    df['wt2'] = df['tci'].rolling(4).mean()
+def wave_trend(df,chlen=9,avg=12,malen=3):
+    df['hlc3'] = (df['High'] + df['Low'] + df['Close'])/3
+    df['esa'] = df['hlc3'].ewm(chlen).mean()
+    df['de'] = abs(df['hlc3'] - df['esa']).ewm(chlen).mean()
+    df['ci'] = (df['hlc3'] - df['esa']) / (0.015 * df['de'])
+    df['ci'] = np.where(np.isnan(df['ci']),0,df['ci'])
+    df['wt1'] = df['ci'].ewm(avg).mean()
+    df['wt2'] = df['wt1'].rolling(malen).mean()
+    df.drop(['hlc3','esa','de','ci'],axis=1,inplace=True)
 
 def WilliamsAlligator(df):
     """Alligator indicator"""
