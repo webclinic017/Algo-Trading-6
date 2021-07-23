@@ -4,7 +4,7 @@ from flask.helpers import url_for
 from flask_login import login_required, current_user
 from .chartlib import consolidating_stocks, breakout_stocks
 from .scraper import get_tickers, get_SANDP_tickers, get_sentiment
-from .strategies import CipherB, HalfTrend
+from .strategies import CipherB, HalfTrend,Scalper
 from .modules.patterns import patterns
 import talib
 import threading
@@ -19,8 +19,9 @@ views = Blueprint('views', __name__)
 ##########################################
 #Only Hardcoded part of website
 strats = {}
-strats['CipherB'] = CipherB, CipherB()
-strats['HalfTrend'] = HalfTrend, HalfTrend()
+strats['Scalper'] = Scalper, Scalper(), "Scalper"
+strats['CipherB'] = CipherB, CipherB(), "CipherB"
+strats['HalfTrend'] = HalfTrend, HalfTrend(), "HalfTrend"
 ##########################################
 
 threads = []
@@ -47,7 +48,10 @@ def algorithms():
                 break
         
         return redirect(url_for('views.algorithms'))
-    return render_template("algorithms.html", user=current_user, strats=[(s,strats[s],threads[i].isAlive()) for i,s in enumerate(strats)])
+    
+    # for strat in strats:
+    #     strats[strat][1].save_plot()
+    return render_template("algorithms.html", user=current_user, strats=[(s,strats[s],threads[i].isAlive(),f"{strats[s][2]}.png") for i,s in enumerate(strats)])
 
 @views.route('/updateData')
 @login_required

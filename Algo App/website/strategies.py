@@ -3,9 +3,99 @@ from .modules.indicators import cipherB, ATR, half_trend, money_flow, wave_trend
 import time
 import datetime as dt
 import numpy as np
+import os
+import matplotlib.pyplot as plt
 from . import config
 
 api = ClientREST(access_token = config.access_token, account_id = config.account_id)
+
+class Scalper:
+    def __init__(self):
+        self.instrument = 'EUR_USD'
+        self.update_data()
+        self.run = False
+        self.rr_mult = 1.5
+        self.order = None
+
+    def update_data(self):
+        m5 = api.get_candlestick_data(self.instrument,300,"M5")
+        h1 = api.get_candlestick_data(self.instrument,300,"H1")
+        #Add indicators to data here
+        m5['EMA 8'] = m5['Close'].ewm(8).mean()
+        m5['EMA 13'] = m5['Close'].ewm(13).mean()
+        m5['EMA 21'] = m5['Close'].ewm(21).mean()
+        
+        h1['EMA 8'] = h1['Close'].ewm(8).mean()
+        h1['EMA 21'] = h1['Close'].ewm(8).mean()
+        
+        self.m5 = m5
+        self.h1 = h1
+
+    def save_plot(self):
+        print(os.getcwd()+'templates/Scalper.png')
+        plt.plot(self.m5['Close'],alpha=0.7,label='Close')
+        plt.plot(self.m5['EMA 8'],alpha=0.5)
+        plt.plot(self.m5['EMA 13'],alpha=0.5)
+        plt.plot(self.m5['EMA 21'],alpha=0.5)
+        plt.legend()
+        plt.savefig('Scalper.png')
+
+    def start(self):
+        self.run = True
+        try:
+            print('\nStarting Cipher B Algorithm...')
+            while self.run:
+                if dt.datetime.now().second == 0  and len(api.get_open_positions()['positions']) == 0:
+                    self.update_data()
+                    print(f'\n---- {time.asctime()}: Looking for Signals ---- \n')
+                    m5 = self.m5
+                    h1 = self.h1
+                    print(f'\t{m5.index[-1]}')
+                    c = m5['Close'][-1]
+                    
+                    #Condition 1: Above/Below 8,21 EMA in hour tf
+                    lc1 = h1['Close'][-1] > h1['EMA 8'][-1] and h1['EMA 8'][-1] > h1['EMA 21'][-1]
+                    sc1 = h1['Close'][-1] < h1['EMA 8'][-1] and h1['EMA 8'][-1] < h1['EMA 21'][-1]
+                    
+                    #Condtion 2: Above EMA's in 5 minute timeframe
+                    lc2 = m5['Close'][-1] > m5['EMA 8'][-1] and m5['EMA 8'][-1] > m5['EMA 13'][-1] and m5['EMA 13'][-1] > m5['EMA 21'][-1]
+                    sc2 = m5['Close'][-1] < m5['EMA 8'][-1] and m5['EMA 8'][-1] < m5['EMA 13'][-1] and m5['EMA 13'][-1] < m5['EMA 21'][-1]
+                    
+                    #Condition3: Trigger candle (pullback into EMA 8)
+                    lc3 = m5['Low'][-2] > m5['EMA 8'][-1] and m5['Low'][-1] <= m5['EMA 8'][-1]
+                    sc3 = m5['High'][-2] < m5['EMA 8'][-1] and m5['High'][-1] >= m5['EMA 8'][-1]
+                    
+                    if len(api.get_orders()['orders']) == 0 and (lc1 and lc2 and lc3):
+                        stop_loss = m5['Low'][-1]
+                        take_profit = c + self.rr_mult*(c - stop_loss)
+                        stop_price = max([m5['High'][-di] for di in range(2,6)])
+                        qty = api.calculate_qty(c,stop_loss,self.instrument,balance=api.get_balance())
+                        api.stop_order(self.instrument,stop_price,qty,stop_loss,take_profit)
+                        self.order = "long"
+                        print("\tLong Signal Detected")
+                    if len(api.get_orders()['orders']) == 0 and (sc1 and sc2 and sc3):
+                        stop_loss = m5['High'][-1]
+                        take_profit = c - self.rr_mult*(stop_loss-c)
+                        stop_price = min([m5['Low'][-di] for di in range(2,6)])
+                        qty = api.calculate_qty(c,stop_loss,self.instrument,balance=api.get_balance())
+                        api.stop_order(self.instrument,stop_price,qty,stop_loss,take_profit)
+                        self.order = "short"
+                        print("\tShort Signal Detected")
+                    elif self.order:
+                        if self.order == "long":
+                            if m5['Close'][-1] < m5['EMA 21'][-1]:
+                                api.cancel_order()
+                        else:
+                            if m5['Close'][-1] > m5['EMA 21'][-1]:
+                                api.cancel_order() 
+                    else:
+                        print('\tNo Signals found')
+            print('\nStopping Cipher B Algorithm...')
+
+        except Exception as e:
+            print(e)
+            print('\nAn error occured, restarting...')
+            self.start()
 
 class HalfTrend:
     def __init__(self,candle_span='M5'):
@@ -52,6 +142,20 @@ class HalfTrend:
         df['Sell'] = bear_cross & below_200_ema & mf_below_0 & good_time
         
         self.data = df
+    
+    def save_plot(self):
+        plt.subplot(2,1,1)
+        plt.plot(self.data['Close'],alpha=0.7,label='Close')
+        plt.plot(self.data['EMA 200'],alpha=0.5)
+        plt.plot(self.data.index,np.where(self.data['Buy']==True,self.data['Close'],np.nan),marker='^',color='g')
+        plt.plot(self.data.index,np.where(self.data['Sell']==True,self.data['Close'],np.nan),marker='v',color='r')
+        plt.legend()
+
+        plt.subplot(2,1,2)
+        plt.plot(self.data['Money Flow'])
+        plt.plot(self.data['wt1'])
+        plt.plot(self.data['wt2'])
+        plt.savefig('HalfTrend.png')
 
     def start(self):
         self.run = True
@@ -138,6 +242,21 @@ class CipherB:
         data['Sell'] = (bear_condition1 & bear_condition2 & bear_condition3 & bear_condition4)
         
         self.data = data
+
+    def save_plot(self):
+        plt.subplot(2,1,1)
+        plt.plot(self.data['Close'],alpha=0.7,label='Close')
+        plt.plot(self.data['EMA 200'],alpha=0.5)
+        plt.plot(self.data['EMA 50'],alpha=0.5)
+        plt.plot(self.data.index,np.where(self.data['Buy']==True,self.data['Close'],np.nan),marker='^',color='g')
+        plt.plot(self.data.index,np.where(self.data['Sell']==True,self.data['Close'],np.nan),marker='v',color='r')
+        plt.legend()
+
+        plt.subplot(2,1,2)
+        plt.plot(self.data['Money Flow'])
+        plt.plot(self.data['wt1'])
+        plt.plot(self.data['wt2'])
+        plt.savefig('CipherB.png')
 
     def start(self):
         self.run = True

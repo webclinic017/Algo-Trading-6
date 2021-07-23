@@ -70,7 +70,7 @@ class ClientREST:
         else:
             stop_loss = round(stop_loss,5)
             take_profit = round(take_profit,5)
-        end_point = f"v3/accounts/{account_id}/orders"
+        end_point = f"v3/accounts/{self.account_id}/orders"
         data =  {
             "order": {
                 "stopLossOnFill": {
@@ -150,21 +150,29 @@ class ClientREST:
                 "takeProfitOnFill": {
                     "price": str(take_profit)
                 },
-                "timeInForce": "GTD",
+                "timeInForce": "GTC",
                 "instrument": instrument,
                 "units": str(qty),
+                "clientExtensions": {
+                    "id": "myorder"
+                },
                 "type": "STOP",
                 "positionFill": "DEFAULT"
             }
         }
         end_point = f"v3/accounts/{self.account_id}/orders"
         response = requests.post(self.BASE_URL+end_point, json=data, headers=self.auth_header)
-        print(response)
+        print(json.loads(response.text))
         dic = json.loads(response.text)
         if 'errorMessage' in dic.keys():
             print(f'\tUnable to complete order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit}')
         else:
             print(f'\Stop Order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit} | completed')
+
+    def cancel_order(self,orderid='myorder'):
+        response = requests.put(f'{self.BASE_URL}v3/accounts/{self.account_id}/orders/@{orderid}/cancel', 
+            headers=self.auth_header)
+        print(response)
 
     def get_orders(self):
         response = requests.get(f'{self.BASE_URL}v3/accounts/{self.account_id}/orders', 
