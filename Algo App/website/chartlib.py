@@ -19,8 +19,8 @@ def is_breaking_out(df, percentage=2.5):
 
 def breakout_stocks():
     tickers = []
-    for filename in os.listdir(os.getcwd() + '/website/datasets/daily'):
-        df = pandas.read_csv(os.getcwd() + '/website/datasets/daily/{}'.format(filename))
+    for filename in os.listdir('website/datasets/daily'):
+        df = pandas.read_csv('website/datasets/daily/{}'.format(filename))
         if len(df) > 0:
             if is_breaking_out(df):
                 print("{} is breaking out".format(filename))
@@ -29,8 +29,8 @@ def breakout_stocks():
 
 def consolidating_stocks():
     tickers = []
-    for filename in os.listdir(os.getcwd() + '/website/datasets/daily'):
-        df = pandas.read_csv(os.getcwd() + '/website/datasets/daily/{}'.format(filename))
+    for filename in os.listdir('website/datasets/daily'):
+        df = pandas.read_csv('website/datasets/daily/{}'.format(filename))
         if len(df) > 0:
             if is_consolidating(df, percentage=2.5):
                 print("{} is consolidating".format(filename))

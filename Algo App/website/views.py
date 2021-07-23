@@ -57,10 +57,10 @@ def algorithms():
 @login_required
 def updateData():
     tickers = get_SANDP_tickers()
-    data = yf.download(tickers, start="2020-01-01", end=str(dt.date.today()))
     for symbol in tickers:
-        if symbol in data:
-            data[symbol].to_csv(f'{os.getcwd()}/website/datasets/daily/{symbol}.csv')
+        data = yf.download(symbol, start="2020-01-01", end=str(dt.date.today()))
+        if len(data) > 0:
+            data.to_csv(f'website/datasets/daily/{symbol}.csv')
 
     return {
         "code": "success"
