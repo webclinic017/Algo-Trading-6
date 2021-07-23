@@ -1,5 +1,6 @@
 from .modules.oanda_api import ClientREST
 from .modules.indicators import cipherB, ATR, half_trend, money_flow, wave_trend, RSI
+from .modules.alert import alert
 import time
 import datetime as dt
 import numpy as np
@@ -43,7 +44,7 @@ class Scalper:
     def start(self):
         self.run = True
         try:
-            print('\nStarting Cipher B Algorithm...')
+            print('\nStarting Scalper Algorithm...')
             while self.run:
                 if dt.datetime.now().second == 0  and len(api.get_open_positions()['positions']) == 0:
                     self.update_data()
@@ -72,6 +73,7 @@ class Scalper:
                         qty = api.calculate_qty(c,stop_loss,self.instrument,balance=api.get_balance())
                         api.stop_order(self.instrument,stop_price,qty,stop_loss,take_profit)
                         self.order = "long"
+                        alert("Long Signal","Scalper Long","8452697031@mms.att.net")
                         print("\tLong Signal Detected")
                     if len(api.get_orders()['orders']) == 0 and (sc1 and sc2 and sc3):
                         stop_loss = m5['High'][-1]
@@ -80,17 +82,20 @@ class Scalper:
                         qty = api.calculate_qty(c,stop_loss,self.instrument,balance=api.get_balance())
                         api.stop_order(self.instrument,stop_price,qty,stop_loss,take_profit)
                         self.order = "short"
+                        alert("Short Signal","Scalper Short","8452697031@mms.att.net")
                         print("\tShort Signal Detected")
                     elif self.order:
                         if self.order == "long":
                             if m5['Close'][-1] < m5['EMA 21'][-1]:
                                 api.cancel_order()
+                                self.order = None
                         else:
                             if m5['Close'][-1] > m5['EMA 21'][-1]:
-                                api.cancel_order() 
+                                api.cancel_order()
+                                self.order = None
                     else:
                         print('\tNo Signals found')
-            print('\nStopping Cipher B Algorithm...')
+            print('\nStopping Scalper Algorithm...')
 
         except Exception as e:
             print(e)
@@ -173,12 +178,14 @@ class HalfTrend:
                         take_profit = c + self.rr_mult*(c-stop_loss)
                         qty = api.calculate_qty(c,stop_loss,self.instrument,balance=api.get_balance())
                         api.market_order(self.instrument,qty,stop_loss,take_profit)
+                        alert("Long Signal","Halftrend Long","8452697031@mms.att.net")
                         print("\tLong Signal Detected")
                     elif len(api.get_orders()['orders']) == 0 and df['Sell'][-1]:
                         stop_loss = c + self.atr_mult * df['ATR'][-1]
                         take_profit = c - self.rr_mult*(stop_loss-c)
                         qty = api.calculate_qty(c,stop_loss,self.instrument,balance=api.get_balance())
                         api.market_order(self.instrument,qty,stop_loss,take_profit)
+                        alert("Short Signal","Halftrend Short","8452697031@mms.att.net")
                         print("Short Signal Detected")
                     else:
                         print('\tNo Signals found')
@@ -275,12 +282,14 @@ class CipherB:
                         take_profit = c + self.rr_mult*(c-stop_loss)
                         qty = api.calculate_qty(c,stop_loss,"EUR_USD",balance=api.get_balance())
                         api.market_order(self.instrument,qty,stop_loss,take_profit)
+                        alert("Long Signal","Cipher B Long","8452697031@mms.att.net")
                         print("\tLong Signal Detected")
                     elif len(api.get_orders()['orders']) == 0 and df['Sell'][-1]:
                         stop_loss = c + self.atr_mult * df['ATR'][-1]
                         take_profit = c - self.rr_mult*(stop_loss-c)
                         qty = api.calculate_qty(c,stop_loss,"EUR_USD",balance=api.get_balance())
                         api.market_order(self.instrument,qty,stop_loss,take_profit)
+                        alert("Short Signal","Cipher B Short","8452697031@mms.att.net")
                         print("Short Signal Detected")
                     else:
                         print('\tNo Signals found')
