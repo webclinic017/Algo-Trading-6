@@ -62,34 +62,82 @@ class ClientREST:
         return json.loads(response.content)
 
     #Order Endpoints
-    def market_order(self, instrument, qty, stop_loss, take_profit):
+    def market_order(self, instrument, qty, stop_loss=None, take_profit=None, trailing_stop=None):
         """Sends market order, FOK: filled or killed"""
-        if stop_loss >= 10:
-            stop_loss = round(stop_loss,3)
-            take_profit = round(take_profit,3)
-        else:
-            stop_loss = round(stop_loss,5)
-            take_profit = round(take_profit,5)
         end_point = f"v3/accounts/{self.account_id}/orders"
-        data =  {
-            "order": {
-                "stopLossOnFill": {
-                "timeInForce": "GTC",
-                "price": str(stop_loss)
-                },
-                "takeProfitOnFill": {
-                "price": str(take_profit)
-                },
-                "units": str(qty),
-                "instrument": instrument,
-                "timeInForce": "FOK",
-                "type": "MARKET",
-                "positionFill": "DEFAULT"
+        if stop_loss and take_profit:
+            if stop_loss >= 10:
+                stop_loss = round(stop_loss,3)
+                take_profit = round(take_profit,3)
+            else:
+                stop_loss = round(stop_loss,5)
+                take_profit = round(take_profit,5)
+            data =  {
+                "order": {
+                    "stopLossOnFill": {
+                    "timeInForce": "GTC",
+                    "price": str(stop_loss)
+                    },
+                    "takeProfitOnFill": {
+                    "price": str(take_profit)
+                    },
+                    "units": str(qty),
+                    "instrument": instrument,
+                    "timeInForce": "FOK",
+                    "type": "MARKET",
+                    "positionFill": "DEFAULT"
+                }
             }
-        }
+        elif trailing_stop and take_profit:
+            trailing_stop = round(trailing_stop,5)
+            print(trailing_stop)
+            data =  {
+                "order": {
+                    "trailingStopLossOnFill": {
+                        "distance" : str(trailing_stop),
+                        "timeInForce" : "GTC"
+                    },
+                    "takeProfitOnFill": {
+                    "price": str(take_profit)
+                    },
+                    "units": str(qty),
+                    "instrument": instrument,
+                    "timeInForce": "FOK",
+                    "type": "MARKET",
+                    "positionFill": "DEFAULT"
+                }
+            }
+        elif trailing_stop:
+            trailing_stop = round(trailing_stop,5)
+            print(trailing_stop)
+            data =  {
+                "order": {
+                    "trailingStopLossOnFill": {
+                        "distance" : str(trailing_stop),
+                        "timeInForce" : "GTC"
+                    },
+                    "units": str(qty),
+                    "instrument": instrument,
+                    "timeInForce": "FOK",
+                    "type": "MARKET",
+                    "positionFill": "DEFAULT"
+                }
+            }
+        else:
+            data =  {
+                "order": {
+                    "units": str(qty),
+                    "instrument": instrument,
+                    "timeInForce": "FOK",
+                    "type": "MARKET",
+                    "positionFill": "DEFAULT"
+                }
+            }
+        print(data)
         response = requests.post(self.BASE_URL+end_point, json=data, headers=self.auth_header)
         print(response)
         dic = json.loads(response.text)
+        print(dic)
         if 'errorMessage' in dic.keys():
             print(f'\tUnable to complete order for | {qty} | {instrument} | stoploss:{stop_loss} | takeprofit:{take_profit}')
         else:

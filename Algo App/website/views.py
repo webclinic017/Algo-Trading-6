@@ -4,7 +4,7 @@ from flask.helpers import url_for
 from flask_login import login_required, current_user
 from .chartlib import consolidating_stocks, breakout_stocks
 from .scraper import get_tickers, get_SANDP_tickers, get_sentiment
-from .strategies import CipherB, HalfTrend,Scalper
+from .strategies import CipherB, CipherB5, HalfTrend,Scalper
 from .modules.patterns import patterns
 import talib
 import threading
@@ -22,6 +22,7 @@ strats = {}
 strats['Scalper'] = Scalper, Scalper()
 strats['CipherB'] = CipherB, CipherB()
 strats['HalfTrend'] = HalfTrend, HalfTrend()
+strats['CipherB5'] = CipherB5,CipherB5()
 ##########################################
 
 threads = []
